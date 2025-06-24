@@ -1,7 +1,7 @@
 ﻿using System;
 namespace Scripts
 {
-    public static void SetNewObject(Gameobject gameobject)
+    public static void CreateNewObject(Gameobject gameobject)
     {
         Instantiate(gameobject);
     }
@@ -11,7 +11,7 @@ namespace Scripts
          chance = Random.Range(0, 100);
     }
 
-    public static int SetSalary(int paymentPerHour, int hoursWorked)
+    public static int GetSalary(int paymentPerHour, int hoursWorked)
     {
         return paymentPerHour * hoursWorked;
     }
