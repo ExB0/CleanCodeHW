@@ -3,12 +3,19 @@ namespace Scripts
 {
     class Weapon
     {
-        private  int _bullets;
-        private const int _bulletPerShot = 1;
+        private const int BulletPerShot = 1;
 
-        public bool CanShoot() => _bullets > 0;
+        private int _bullets;
 
-        public void Shoot() => _bullets -= _bulletPerShot;
+        public bool CanShoot() => _bullets >= BulletPerShot;
+
+        public void Shoot()
+        {
+            if (CanShoot())
+            {
+                _bullets -= BulletPerShot;
+            }
+        }
     }
 }
 
