@@ -1,17 +1,18 @@
 ﻿using System;
+using System.Numerics;
 namespace Scripts
 {
-    public static void CreateNewObject(Gameobject gameobject)
+    public static void CreateObject(Gameobject gameobject,Vector3 startPosition,Quaternion startRotation)
     {
-        Instantiate(gameobject);
+        Instantiate(gameobject,startPosition,startRotation);
     }
 
-    public static void SetChance(float chance)
+    public static float GenerateChance()
     {
-         chance = Random.Range(0, 100);
+         return Random.Range(0, 100);
     }
 
-    public static int GetSalary(int paymentPerHour, int hoursWorked)
+    public static float CalculateSalary(int paymentPerHour, int hoursWorked)
     {
         return paymentPerHour * hoursWorked;
     }

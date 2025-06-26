@@ -1,9 +1,9 @@
 ﻿using System;
 namespace Scripts
 {
-    class BulletsThrower
+    class BulletsShooter
     {
-        public void ThrowBullet() { }
+        public void Shoot() { }
     }
 }
 

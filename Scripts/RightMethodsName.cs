@@ -1,10 +1,10 @@
 ﻿using System;
 namespace Scripts
 {
-    class PlayerData { }
-    class GunController { }
-    class TargetFollower { }
-    class UnitsCollection
+    class PlayerProgress { }
+    class GunShooter { }
+    class UnitChaser { }
+    class Squad
     {
         public IReadOnlyCollection<Unit> Units { get; private set; }
     }
