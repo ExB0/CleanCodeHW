@@ -2,7 +2,7 @@ using System;
 
 public interface IPaymentHandler
 {
-    public string ShowPaymentResult(string systemId);
+    public void ShowPaymentResult();
 }
 
 namespace IMJunior
@@ -12,38 +12,60 @@ namespace IMJunior
         public string ShowForm()
         {
             Console.WriteLine("Мы принимаем: QIWI, WebMoney, Card");
-
-            //симуляция веб интерфейса
             Console.WriteLine("Какое системой вы хотите совершить оплату?");
             return Console.ReadLine();
         }
     }
 
-    public class PaymentHandlerQiwi : IPaymentHandler
+    public static class PaymentResultPrinter
     {
-        public string ShowPaymentResult(string systemId)
+        public static void Print(string systemId)
         {
             Console.WriteLine($"Вы оплатили с помощью {systemId}");
-
-            if (systemId == "QIWI")
-                Console.WriteLine("Проверка платежа через QIWI...");
-            else if (systemId == "WebMoney")
-                Console.WriteLine("Проверка платежа через WebMoney...");
-            else if (systemId == "Card")
-                Console.WriteLine("Проверка платежа через Card...");
-
+            Console.WriteLine($"Проверка платежа через {systemId}...");
             Console.WriteLine("Оплата прошла успешно!");
+        }
+    }
+
+    public class PaymentHandlerQiwi : IPaymentHandler
+    {
+        public void ShowPaymentResult()
+        {
+            Console.WriteLine("Перевод на страницу QIWI...");
+            PaymentResultPrinter.Print("QIWI");
         }
     }
 
     public class PaymentHandlerWebMoney : IPaymentHandler
     {
-        
+        public void ShowPaymentResult()
+        {
+            Console.WriteLine("Вызов API WebMoney...");
+            PaymentResultPrinter.Print("WebMoney");
+        }
     }
 
     public class PaymentHandlerCard : IPaymentHandler
     {
-        
+        public void ShowPaymentResult()
+        {
+            Console.WriteLine("Вызов API банка эмитера карты Card...");
+            PaymentResultPrinter.Print("Card");
+        }
+    }
+
+    public static class PaymentHandlerFactory
+    {
+        public static IPaymentHandler Create(string systemId)
+        {
+            return systemId switch
+            {
+                "QIWI" => new PaymentHandlerQiwi(),
+                "WebMoney" => new PaymentHandlerWebMoney(),
+                "Card" => new PaymentHandlerCard(),
+                _ => throw new ArgumentException(nameof(systemId),"Неизвестная платёжная система")
+            };
+        }
     }
 
     class Program
@@ -51,18 +73,9 @@ namespace IMJunior
         static void Main(string[] args)
         {
             var orderForm = new OrderForm();
-            var paymentHandler = new PaymentHandler();
-
             var systemId = orderForm.ShowForm();
-
-            if (systemId == "QIWI")
-                Console.WriteLine("Перевод на страницу QIWI...");
-            else if (systemId == "WebMoney")
-                Console.WriteLine("Вызов API WebMoney...");
-            else if (systemId == "Card")
-                Console.WriteLine("Вызов API банка эмитера карты Card...");
-
-            paymentHandler.ShowPaymentResult(systemId);
+            var paymentHandler = PaymentHandlerFactory.Create(systemId);
+            paymentHandler.ShowPaymentResult();
         }
     }
 
