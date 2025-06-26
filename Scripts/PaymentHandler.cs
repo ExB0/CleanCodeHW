@@ -21,6 +21,9 @@ namespace IMJunior
     {
         public static void Print(string systemId)
         {
+            if (systemId == null)
+                throw new ArgumentNullException(nameof(systemId),"Не введена оплата");
+
             Console.WriteLine($"Вы оплатили с помощью {systemId}");
             Console.WriteLine($"Проверка платежа через {systemId}...");
             Console.WriteLine("Оплата прошла успешно!");
