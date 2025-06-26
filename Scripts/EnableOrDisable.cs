@@ -11,7 +11,7 @@ public class EnableOnOrOf
     public void Disable()
     {   
         _enable = false;
-        _pool.Free(this);;;
+        _pool.Free(this);
     }
 
 }
