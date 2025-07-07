@@ -10,11 +10,11 @@ namespace Scripts
         public bool CanShoot() => _bullets >= BulletPerShot;
 
         public void Shoot()
-        {
-            if (CanShoot())
-            {
+        {   
+            if (!CanShoot())
+                throw new ArgumentException("Недостаточно пуль");
+
                 _bullets -= BulletPerShot;
-            }
         }
     }
 }
