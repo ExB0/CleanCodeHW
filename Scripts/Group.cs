@@ -1,45 +1,52 @@
-﻿
-using System;
+﻿using System;
 namespace Scripts
 {
     class Player
     {
         public string Name { get; private set; }
         public int Age { get; private set; }
+
+        private Mover _mover;
+        private Weapon _weapon;
+
+        public Player(string name,int age,Weapon weapon, Mover mover)
+        {
+            if (name == null)
+                throw new ArgumentNullException(nameof(name), "Нет имени");
+
+            if (age < 0)
+                throw new ArgumentOutOfRangeException(nameof(age), "Возраст не может быть меньше 0");
+
+            if (weapon == null)
+                throw new ArgumentNullException(nameof(weapon), "Нет оружия");
+
+            if (mover == null)
+                throw new ArgumentNullException(nameof(mover), "Нет системы ходьбы");
+
+            Name = name;
+            Age = age;
+            _mover = mover;
+            _weapon = weapon;
+        }
+
     }
 
     class Weapon
     {
         public int WeaponDamage { get; private set; }
         public float WeaponCooldown { get; private set; }
-        public Weapon(int damage, int coldown)
+
+        public Weapon(int damage, int cooldown)
         {
             if (damage <= 0)
                 throw new ArgumentOutOfRangeException(nameof(damage), "Урон не может быть отрицательным или равен 0");
 
-            if (coldown <= 0)
-                throw new ArgumentOutOfRangeException(nameof(coldown), "Перезарядка не может быть отрицательным или равен 0");
+            if (cooldown <= 0)
+                throw new ArgumentOutOfRangeException(nameof(cooldown), "Перезарядка не может быть отрицательным или равен 0");
 
             WeaponDamage = damage;
-            WeaponCooldown = coldown;
+            WeaponCooldown = cooldown;
         }
-    }
-
-    class PlayerMovement
-    {
-        public float MovementSpeed { get; private set; }
-        public float MovementDirectionX { get; private set; }
-        public float MovementDirectionY { get; private set; }
-
-        public void Move()
-        {
-            //Do move
-        }
-    }
-
-    class PlayerCombat
-    {
-        private Weapon _weapon = new Weapon(5, 10);
 
         public void Attack()
         {
@@ -52,5 +59,32 @@ namespace Scripts
         }
     }
 
+    class Mover
+    {
+        public float MovementSpeed { get; private set; }
+        public float MovementDirectionX { get; private set; }
+        public float MovementDirectionY { get; private set; }
+
+        public Mover(float speedValue, float xValue, float yValue)
+        {
+            if (speedValue < 0)
+                throw new ArgumentOutOfRangeException(nameof(speedValue), "Число не может быть меньше 0");
+
+            if (xValue < 0)
+                throw new ArgumentOutOfRangeException(nameof(xValue), "Число не может быть меньше 0");
+
+            if (yValue < 0)
+                throw new ArgumentOutOfRangeException(nameof(yValue), "Число не может быть меньше 0");
+
+            MovementSpeed = speedValue;
+            MovementDirectionX = xValue;
+            MovementDirectionY = yValue;
+        }
+
+        public void Move()
+        {
+            //Do move
+        }
+    }
 }
 
