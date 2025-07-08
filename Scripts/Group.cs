@@ -3,13 +3,10 @@ namespace Scripts
 {
     class Player
     {
-        public string Name { get; private set; }
-        public int Age { get; private set; }
-
         private Mover _mover;
         private Weapon _weapon;
 
-        public Player(string name,int age,Weapon weapon, Mover mover)
+        public Player(string name, int age, Weapon weapon, Mover mover)
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name), "Нет имени");
@@ -28,14 +25,14 @@ namespace Scripts
             _mover = mover;
             _weapon = weapon;
         }
+        
+        public string Name { get; private set; }
+        public int Age { get; private set; }
 
     }
 
     class Weapon
     {
-        public int WeaponDamage { get; private set; }
-        public float WeaponCooldown { get; private set; }
-
         public Weapon(int damage, int cooldown)
         {
             if (damage <= 0)
@@ -47,6 +44,9 @@ namespace Scripts
             WeaponDamage = damage;
             WeaponCooldown = cooldown;
         }
+
+        public int WeaponDamage { get; private set; }
+        public float WeaponCooldown { get; private set; }
 
         public void Attack()
         {
@@ -61,10 +61,6 @@ namespace Scripts
 
     class Mover
     {
-        public float MovementSpeed { get; private set; }
-        public float MovementDirectionX { get; private set; }
-        public float MovementDirectionY { get; private set; }
-
         public Mover(float speedValue, float xValue, float yValue)
         {
             if (speedValue < 0)
@@ -80,6 +76,10 @@ namespace Scripts
             MovementDirectionX = xValue;
             MovementDirectionY = yValue;
         }
+
+        public float MovementSpeed { get; private set; }
+        public float MovementDirectionX { get; private set; }
+        public float MovementDirectionY { get; private set; }
 
         public void Move()
         {
