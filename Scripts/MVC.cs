@@ -4,7 +4,22 @@ using System.IO;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
+
+public class Program
+{
+    public static void Main()
+    {
+        var view = new AppView();
+        var db = new SqliteDatabaseContext();
+        var repo = new CitizenRepository(db);
+        var service = new CitizenService(repo);
+        var hasher = new Sha256HashProvider();
+        var presenter = new AppPresenter(service, hasher, view);
+        view.SetPresenter(presenter);
+        view.Start();
+    }
+}
 
 public class Passport
 {
@@ -17,8 +32,8 @@ public class Passport
 
         var cleaned = input.Replace(" ", string.Empty).Trim();
 
-        if (cleaned.Length < 10)
-            throw new ArgumentException("Неверный формат серии или номера паспорта", nameof(input));
+        if (cleaned.Length != 10 || !long.TryParse(cleaned, out _))
+            throw new InvalidOperationException("Неверный формат серии или номера паспорта");
 
         Number = cleaned;
     }
@@ -92,22 +107,22 @@ public class SqliteDatabaseContext : IDatabaseContext
 
     public DataTable ExecuteQuery(string query)
     {
-        using var connection = new SQLiteConnection($"Data Source={_dbPath}");
+        using var connection = new SqliteConnection($"Data Source={_dbPath}");
         connection.Open();
 
-        using var command = new SQLiteCommand(query, connection);
-        using var adapter = new SQLiteDataAdapter(command);
+        using var command = new SqliteCommand(query, connection);
+        using var adapter = new SqliteDataAdapter(command);
         var table = new DataTable();
         adapter.Fill(table);
         return table;
     }
 }
 
-public class SqliteCitizenRepository : ICitizenRepository
+public class CitizenRepository : ICitizenRepository
 {
     private readonly IDatabaseContext _db;
 
-    public SqliteCitizenRepository(IDatabaseContext db)
+    public CitizenRepository(IDatabaseContext db)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
     }
@@ -190,7 +205,7 @@ public class AppPresenter
     }
 }
 
-public class ConsoleAppView : IAppView
+public class AppView : IAppView
 {
     private AppPresenter? _presenter;
 
@@ -214,27 +229,5 @@ public class ConsoleAppView : IAppView
     public void ShowError(string error)
     {
         Console.WriteLine("Ошибка: " + error);
-    }
-}
-
-class Program
-{
-    static void Main(string[] args)
-    {
-        try
-        {
-            var db = new SqliteDatabaseContext();
-            var repo = new SqliteCitizenRepository(db);
-            var service = new CitizenService(repo);
-            var hasher = new Sha256HashProvider();
-            var view = new ConsoleAppView();
-            var presenter = new AppPresenter(service, hasher, view);
-            view.SetPresenter(presenter);
-            view.Start();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Фатальная ошибка: " + ex.Message);
-        }
     }
 }
