@@ -1,4 +1,53 @@
 using System;
+using System.Data;
+using System.IO;
+using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
+using System.Data.SQLite;
+
+public class Passport
+{
+    public string Number { get; }
+
+    public Passport(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            throw new ArgumentException("Введите серию и номер паспорта", nameof(input));
+
+        var cleaned = input.Replace(" ", string.Empty).Trim();
+
+        if (cleaned.Length < 10)
+            throw new ArgumentException("Неверный формат серии или номера паспорта", nameof(input));
+
+        Number = cleaned;
+    }
+}
+
+public class Citizen
+{
+    public string PassportHash { get; }
+    public bool AccessGranted { get; }
+
+    public Citizen(string passportHash, bool accessGranted)
+    {
+        if (string.IsNullOrWhiteSpace(passportHash))
+            throw new ArgumentException("Пустой хэш паспорта", nameof(passportHash));
+
+        PassportHash = passportHash;
+        AccessGranted = accessGranted;
+    }
+}
+
+public interface ICitizenRepository
+{
+    Citizen? GetByHash(string hash);
+}
+
+public interface ICitizenService
+{
+    Citizen? GetCitizenByHash(string passportHash);
+}
 
 public interface IHashProvider
 {
@@ -21,106 +70,101 @@ public class Sha256HashProvider : IHashProvider
     }
 }
 
-public class PassportInput
+public interface IDatabaseContext
 {
-    public string CleanedNumber { get; }
-
-    public PassportInput(string rawInput)
-    {
-        if (string.IsNullOrWhiteSpace(rawInput))
-            throw new ArgumentException("Введите серию и номер паспорта", nameof(rawInput));
-
-        var cleaned = rawInput.Replace(" ", string.Empty).Trim();
-
-        if (cleaned.Length < 10)
-            throw new ArgumentException("Неверный формат серии или номера паспорта", nameof(rawInput));
-
-        CleanedNumber = cleaned;
-    }
+    DataTable ExecuteQuery(string query);
 }
 
-public interface IPassportService
-{
-    bool? GetAccessStatusByHash(string passportHash);
-}
-
-public interface IPassportRepository
-{
-    bool? GetByHash(string hash);
-}
-
-public class SqlitePassportRepository : IPassportRepository
+public class SqliteDatabaseContext : IDatabaseContext
 {
     private readonly string _dbPath;
 
-    public SqlitePassportRepository()
+    public SqliteDatabaseContext()
     {
-        var exePath = Assembly.GetExecutingAssembly().Location;
-        var folder = Path.GetDirectoryName(exePath);
-
-        if (string.IsNullOrWhiteSpace(folder))
-            throw new InvalidOperationException("Не удалось получить путь к папке.");
+        var folder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
+                     ?? throw new InvalidOperationException("Не удалось получить путь к папке.");
 
         _dbPath = Path.Combine(folder, "db.sqlite");
 
         if (!File.Exists(_dbPath))
-            throw new FileNotFoundException("Файл db.sqlite не найден. Положите файл в папку вместе с exe.");
+            throw new FileNotFoundException("Файл db.sqlite не найден.");
     }
 
-    public bool? GetByHash(string hash)
+    public DataTable ExecuteQuery(string query)
     {
-        if (string.IsNullOrWhiteSpace(hash))
-            throw new ArgumentNullException(nameof(hash), "Нет хэша");
-
         using var connection = new SQLiteConnection($"Data Source={_dbPath}");
         connection.Open();
 
-        var command = new SQLiteCommand($"SELECT * FROM passports WHERE num='{hash}' LIMIT 1;", connection);
-        var adapter = new SQLiteDataAdapter(command);
+        using var command = new SQLiteCommand(query, connection);
+        using var adapter = new SQLiteDataAdapter(command);
         var table = new DataTable();
         adapter.Fill(table);
-
-        if (table.Rows.Count == 0)
-            return null;
-
-        return Convert.ToBoolean(table.Rows[0][1]);
+        return table;
     }
 }
 
-public class PassportService : IPassportService
+public class SqliteCitizenRepository : ICitizenRepository
 {
-    private readonly IPassportRepository _repository;
+    private readonly IDatabaseContext _db;
 
-    public PassportService(IPassportRepository repository)
+    public SqliteCitizenRepository(IDatabaseContext db)
     {
-        _repository = repository ?? throw new ArgumentNullException(nameof(repository), "Нет репозитория");
+        _db = db ?? throw new ArgumentNullException(nameof(db));
     }
 
-    public bool? GetAccessStatusByHash(string passportHash)
+    public Citizen? GetByHash(string hash)
+    {
+        if (string.IsNullOrWhiteSpace(hash))
+            throw new ArgumentNullException(nameof(hash));
+
+        var table = _db.ExecuteQuery($"SELECT * FROM passports WHERE num='{hash}' LIMIT 1;");
+        if (table.Rows.Count == 0) return null;
+
+        bool granted = Convert.ToBoolean(table.Rows[0][1]);
+        return new Citizen(hash, granted);
+    }
+}
+
+public class CitizenService : ICitizenService
+{
+    private readonly ICitizenRepository _repository;
+
+    public CitizenService(ICitizenRepository repository)
+    {
+        _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+    }
+
+    public Citizen? GetCitizenByHash(string passportHash)
     {
         if (string.IsNullOrWhiteSpace(passportHash))
-            throw new ArgumentNullException(nameof(passportHash), "Нет хэша");
+            throw new ArgumentNullException(nameof(passportHash));
 
         return _repository.GetByHash(passportHash);
     }
 }
 
-public class PassportPresenter
+public interface IAppView
 {
-    private readonly IPassportService _service;
-    private readonly IHashProvider _hashProvider;
-    private readonly IPassportView _view;
+    void ShowMessage(string message);
+    void ShowError(string error);
+}
 
-    public PassportPresenter(IPassportService service, IHashProvider hashProvider, IPassportView view)
+public class AppPresenter
+{
+    private readonly ICitizenService _service;
+    private readonly IHashProvider _hashProvider;
+    private readonly IAppView _view;
+
+    public AppPresenter(ICitizenService service, IHashProvider hashProvider, IAppView view)
     {
-        _service = service ?? throw new ArgumentNullException(nameof(service), "Нет сервиса");
-        _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider), "Нет хэша");
-        _view = view ?? throw new ArgumentNullException(nameof(view), "Нет вьюва");
+        _service = service ?? throw new ArgumentNullException(nameof(service));
+        _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
+        _view = view ?? throw new ArgumentNullException(nameof(view));
     }
 
-    public void OnPassportEntered(string rawInput)
+    public void OnPassportEntered(string input)
     {
-        if (string.IsNullOrWhiteSpace(rawInput))
+        if (string.IsNullOrWhiteSpace(input))
         {
             _view.ShowError("Пустой ввод");
             return;
@@ -128,72 +172,47 @@ public class PassportPresenter
 
         try
         {
-            var passportInput = new PassportInput(rawInput);
-            string hash = _hashProvider.ComputeHash(passportInput.CleanedNumber);
-            bool? result = _service.GetAccessStatusByHash(hash);
+            var passport = new Passport(input);
+            string hash = _hashProvider.ComputeHash(passport.Number);
+            var citizen = _service.GetCitizenByHash(hash);
 
-            if (result == null)
-            {
-                _view.ShowMessage($"Паспорт «{passportInput.CleanedNumber}» в списке участников дистанционного голосования НЕ НАЙДЕН");
-            }
-            else if (result == true)
-            {
-                _view.ShowMessage($"По паспорту «{passportInput.CleanedNumber}» доступ ПРЕДОСТАВЛЕН");
-            }
+            if (citizen == null)
+                _view.ShowMessage($"Паспорт «{passport.Number}» в списке НЕ НАЙДЕН");
+            else if (citizen.AccessGranted)
+                _view.ShowMessage($"По паспорту «{passport.Number}» доступ ПРЕДОСТАВЛЕН");
             else
-            {
-                _view.ShowMessage($"По паспорту «{passportInput.CleanedNumber}» доступ НЕ ПРЕДОСТАВЛЯЛСЯ");
-            }
+                _view.ShowMessage($"По паспорту «{passport.Number}» доступ НЕ ПРЕДОСТАВЛЯЛСЯ");
         }
         catch (Exception ex)
         {
-            _view.ShowError($"Ошибка: {ex.Message}");
+            _view.ShowError(ex.Message);
         }
     }
 }
 
-public interface IPassportView
+public class ConsoleAppView : IAppView
 {
-    void ShowMessage(string message);
-    void ShowError(string error);
-}
+    private AppPresenter? _presenter;
 
-public class PassportView : IPassportView
-{
-    private readonly PassportPresenter _presenter;
-
-    public PassportView(PassportPresenter presenter)
+    public void SetPresenter(AppPresenter presenter)
     {
-        _presenter = presenter ?? throw new ArgumentNullException(nameof(presenter), "Нет презентера");
+        _presenter = presenter;
     }
 
     public void Start()
     {
         Console.WriteLine("Введите серию и номер паспорта:");
-        string input = Console.ReadLine();
-
-        if (input == null)
-        {
-            ShowError("Нет ввода с клавиатуры");
-            return;
-        }
-
-        _presenter.OnPassportEntered(input);
+        string? input = Console.ReadLine();
+        _presenter?.OnPassportEntered(input);
     }
 
     public void ShowMessage(string message)
     {
-        if (string.IsNullOrWhiteSpace(message))
-            throw new ArgumentException("Пустое сообщение", nameof(message));
-
         Console.WriteLine(message);
     }
 
     public void ShowError(string error)
     {
-        if (string.IsNullOrWhiteSpace(error))
-            error = "Неизвестная ошибка";
-
         Console.WriteLine("Ошибка: " + error);
     }
 }
@@ -204,14 +223,13 @@ class Program
     {
         try
         {
-            var repository = new SqlitePassportRepository();
-            var service = new PassportService(repository);
-            var hashProvider = new Sha256HashProvider();
-            PassportView view = null;
-
-            var presenter = new PassportPresenter(service, hashProvider, view);
-            view = new PassportView(presenter);
-
+            var db = new SqliteDatabaseContext();
+            var repo = new SqliteCitizenRepository(db);
+            var service = new CitizenService(repo);
+            var hasher = new Sha256HashProvider();
+            var view = new ConsoleAppView();
+            var presenter = new AppPresenter(service, hasher, view);
+            view.SetPresenter(presenter);
             view.Start();
         }
         catch (Exception ex)
